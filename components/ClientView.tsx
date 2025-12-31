@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, CheckCircle, Download, FileText, Play, Link as LinkIcon, ArrowUpRight } from 'lucide-react';
+import { ChevronRight, CheckCircle, Download, FileText, Play, Link as LinkIcon, ArrowUpRight, Image as ImageIcon } from 'lucide-react';
 import { Course, Step, GlobalSettings, UserProgress } from '../types';
 import { AiChatWidget } from './AiChatWidget';
 import { ReviewModal } from './ReviewModal';
@@ -84,9 +84,6 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
   const handleNext = () => {
     markComplete(currentStep.id);
     
-    // Check if it's a LINK step, if so, we might want to redirect immediately or let user read content first?
-    // Current logic: Button says "Next Step". 
-    
     if (currentStepIndex < course.steps.length - 1) {
       setIsTransitioning(true);
       setTimeout(() => {
@@ -110,6 +107,77 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
   useEffect(() => {
     setIsTransitioning(false);
   }, [currentStepIndex]);
+
+  // Helper to render media content
+  const renderMedia = () => {
+      if (currentStep.type === 'video') {
+          if (currentStep.mediaType === 'generated-video' && currentStep.videoUrl) {
+              return (
+                  <div className="w-full h-full relative">
+                       <video
+                          className="w-full h-full object-contain"
+                          src={currentStep.videoUrl}
+                          controls
+                          autoPlay
+                          playsInline
+                        /> 
+                  </div>
+              );
+          } else if (currentStep.videoUrl) {
+             return (
+              <div className="w-full h-full relative">
+                 <iframe
+                  className="w-full h-full object-cover"
+                  src={`https://www.youtube.com/embed/${currentStep.videoUrl}?autoplay=1&controls=0&modestbranding=1&rel=0`}
+                  title="Onboarding Video"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                /> 
+                <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]"></div>
+              </div>
+            );
+          }
+      }
+
+      if (currentStep.type === 'image' && currentStep.imageUrl) {
+          return (
+             <div className="w-full h-full relative p-8 flex items-center justify-center">
+                 <img 
+                    src={currentStep.imageUrl} 
+                    alt={currentStep.title}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                 />
+             </div>
+          );
+      }
+
+      if (currentStep.type === 'embedded' && currentStep.embedUrl) {
+          return (
+              <div className="w-full h-full">
+                  <iframe
+                    className="w-full h-full border-none"
+                    src={currentStep.embedUrl}
+                    title="Embedded Content"
+                    allow="camera; microphone; fullscreen; display-capture; autoplay"
+                  />
+              </div>
+          );
+      }
+
+      // Default Icon State
+      return (
+        <div className="flex flex-col items-center justify-center p-8 text-center">
+          <div className="w-24 h-24 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-6 shadow-xl">
+             {currentStep.type === 'download' ? <Download className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/> : 
+              currentStep.type === 'link' ? <ArrowUpRight className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/> :
+              currentStep.type === 'image' ? <ImageIcon className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/> :
+              <FileText className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/>}
+          </div>
+          <h2 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white">{currentStep.title}</h2>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md">{currentStep.description}</p>
+        </div>
+      );
+  };
 
   return (
     <div className="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white overflow-hidden flex flex-col transition-colors duration-500">
@@ -143,39 +211,9 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
       <div className="flex-1 flex flex-col lg:flex-row h-full pt-2">
         
         {/* Left: Video / Content */}
-        <div className={`lg:w-2/3 h-[50vh] lg:h-screen relative flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden transition-colors duration-500 ${currentStep.type === 'video' || currentStep.type === 'embedded' ? 'bg-black' : 'bg-slate-100 dark:bg-slate-900'}`}>
+        <div className={`lg:w-2/3 h-[50vh] lg:h-screen relative flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden transition-colors duration-500 ${currentStep.type === 'video' || currentStep.type === 'embedded' || currentStep.type === 'image' ? 'bg-black' : 'bg-slate-100 dark:bg-slate-900'}`}>
           <div className={`w-full h-full flex items-center justify-center transition-all duration-400 ease-in-out transform ${isTransitioning ? 'opacity-0 scale-95 blur-sm' : 'opacity-100 scale-100 blur-0'}`}>
-            {currentStep.type === 'video' && currentStep.videoUrl ? (
-              <div className="w-full h-full relative">
-                 <iframe
-                  className="w-full h-full object-cover"
-                  src={`https://www.youtube.com/embed/${currentStep.videoUrl}?autoplay=1&controls=0&modestbranding=1&rel=0`}
-                  title="Onboarding Video"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                /> 
-                <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.8)]"></div>
-              </div>
-            ) : currentStep.type === 'embedded' && currentStep.embedUrl ? (
-              <div className="w-full h-full">
-                  <iframe
-                    className="w-full h-full border-none"
-                    src={currentStep.embedUrl}
-                    title="Embedded Content"
-                    allow="camera; microphone; fullscreen; display-capture; autoplay"
-                  />
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 text-center">
-                <div className="w-24 h-24 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-6 shadow-xl">
-                   {currentStep.type === 'download' ? <Download className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/> : 
-                    currentStep.type === 'link' ? <ArrowUpRight className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/> :
-                    <FileText className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/>}
-                </div>
-                <h2 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white">{currentStep.title}</h2>
-                <p className="text-slate-500 dark:text-slate-400 max-w-md">{currentStep.description}</p>
-              </div>
-            )}
+            {renderMedia()}
           </div>
         </div>
 
@@ -198,6 +236,13 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
                 <div className="flex items-center gap-3 text-slate-500 dark:text-slate-300">
                   <Play className="w-5 h-5 fill-current" />
                   <span>Watch the video to continue</span>
+                </div>
+              )}
+
+              {currentStep.type === 'image' && (
+                <div className="flex items-center gap-3 text-slate-500 dark:text-slate-300">
+                  <ImageIcon className="w-5 h-5" />
+                  <span>Review the diagram above</span>
                 </div>
               )}
 

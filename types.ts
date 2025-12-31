@@ -1,12 +1,19 @@
 
-export type StepType = 'video' | 'action' | 'download' | 'embedded' | 'link';
+export type StepType = 'video' | 'action' | 'download' | 'embedded' | 'link' | 'image';
+
+export type MediaType = 'youtube' | 'generated-video' | 'generated-image' | 'upload';
 
 export interface Step {
   id: string;
   title: string;
   description: string;
   type: StepType;
-  videoUrl?: string; // For 'video' type (YouTube ID)
+  
+  // Media Configuration
+  mediaType?: MediaType; 
+  videoUrl?: string; // YouTube ID or Generated Video URI
+  imageUrl?: string; // Base64 or URL for Image steps
+  
   embedUrl?: string; // For 'embedded' type (Full URL)
   actionLabel?: string; // For 'action' type
   fileUrl?: string; // For 'download' type

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { generateCourseStructure, enhanceText } from '../services/geminiService';
-import { Course, Step, StepType } from '../types';
+import { generateCourseStructure, enhanceText, generateAiImage, generateAiVideo } from '../services/geminiService';
+import { Course, Step, StepType, MediaType } from '../types';
 import { 
   Wand2, Plus, Layout, Video, Download, CheckSquare, Loader2, Save, 
   Trash2, GripVertical, Link as LinkIcon, Upload, Bold, Italic, 
-  List, Heading, Sparkles, Monitor, Smartphone, ChevronRight, Settings, ArrowLeft, Play, ArrowUpRight 
+  List, Heading, Sparkles, Monitor, Smartphone, ChevronRight, Settings, 
+  ArrowLeft, Play, ArrowUpRight, Image as ImageIcon, Film 
 } from 'lucide-react';
 
 interface AdminDashboardProps {
   initialCourse?: Course;
-  allCourses: Course[]; // Added to support linking to other courses
+  allCourses: Course[];
   onSave: (course: Course) => void;
   onCancel: () => void;
 }
@@ -17,9 +18,8 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, allCourses, onSave, onCancel }) => {
   // State
   const [topic, setTopic] = useState(initialCourse ? initialCourse.name : '');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingStructure, setIsGeneratingStructure] = useState(false);
   
-  // Use Partial<Step> internally for flexibility during creation, but cast when saving
   const [generatedSteps, setGeneratedSteps] = useState<Partial<Step>[]>(
     initialCourse ? initialCourse.steps : []
   );
@@ -27,9 +27,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
   const [activeStepIndex, setActiveStepIndex] = useState<number | null>(null);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [showAiPanel, setShowAiPanel] = useState(!initialCourse); // Hide AI panel if editing existing
+  const [showAiPanel, setShowAiPanel] = useState(!initialCourse);
+  
+  // Asset Generation State
+  const [assetPrompt, setAssetPrompt] = useState('');
+  const [isGeneratingAsset, setIsGeneratingAsset] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
-  // Initialize with a default step if empty
   useEffect(() => {
     if (generatedSteps.length === 0) {
       addNewStep();
@@ -40,14 +44,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
 
   // --- Actions ---
 
-  const handleGenerate = async () => {
+  const handleGenerateStructure = async () => {
     if (!topic) return;
-    setIsGenerating(true);
+    setIsGeneratingStructure(true);
     const steps = await generateCourseStructure(topic);
     setGeneratedSteps(steps);
     if (steps.length > 0) setActiveStepIndex(0);
-    setIsGenerating(false);
-    setShowAiPanel(false); // Auto close AI panel to show results
+    setIsGeneratingStructure(false);
+    setShowAiPanel(false);
   };
 
   const handleSave = () => {
@@ -56,7 +60,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
         title: s.title || 'Untitled Step',
         description: s.description || '',
         type: s.type || 'action',
+        
+        // Media defaults
+        mediaType: s.mediaType || 'youtube',
         videoUrl: s.videoUrl,
+        imageUrl: s.imageUrl,
+        
         embedUrl: s.embedUrl,
         actionLabel: s.actionLabel,
         fileName: s.fileName,
@@ -96,10 +105,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
           title: 'New Step',
           description: 'Description of the step',
           type: 'action',
-          actionLabel: 'Complete task'
+          actionLabel: 'Complete task',
+          mediaType: 'youtube'
       };
       setGeneratedSteps(prev => [...prev, newStep]);
-      setActiveStepIndex(generatedSteps.length); // Select new step
+      setActiveStepIndex(generatedSteps.length);
   };
 
   const handleEnhanceDescription = async () => {
@@ -112,6 +122,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
     updateActiveStep('description', improvedText);
     setIsEnhancing(false);
   };
+
+  // --- Asset Generation ---
+  const handleGenerateAsset = async () => {
+      if (!assetPrompt || activeStepIndex === null) return;
+      setIsGeneratingAsset(true);
+      setGenerationError(null);
+      
+      try {
+          const stepType = generatedSteps[activeStepIndex].type;
+          
+          if (stepType === 'image') {
+              const base64Image = await generateAiImage(assetPrompt);
+              if (base64Image) {
+                  updateActiveStep('imageUrl', base64Image);
+                  updateActiveStep('mediaType', 'generated-image');
+              }
+          } else if (stepType === 'video') {
+              // Defaulting to 16:9 for now, could be an option
+              const videoUri = await generateAiVideo(assetPrompt, '16:9');
+              if (videoUri) {
+                  updateActiveStep('videoUrl', videoUri);
+                  updateActiveStep('mediaType', 'generated-video');
+              }
+          }
+      } catch (err) {
+          setGenerationError("Generation failed. Please try again or check your API key.");
+      } finally {
+          setIsGeneratingAsset(false);
+      }
+  };
+
 
   const insertTextAtCursor = (textToInsert: string) => {
     const textarea = document.getElementById('preview-description') as HTMLTextAreaElement;
@@ -206,11 +247,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
                         className="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-white placeholder-slate-600 focus:border-indigo-500 outline-none resize-none mb-3"
                     />
                     <button 
-                        onClick={handleGenerate}
-                        disabled={isGenerating || !topic}
+                        onClick={handleGenerateStructure}
+                        disabled={isGeneratingStructure || !topic}
                         className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-bold text-white transition-colors flex items-center justify-center gap-2"
                     >
-                        {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        {isGeneratingStructure ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                         Generate Structure
                     </button>
                 </div>
@@ -286,6 +327,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
                         className="bg-transparent text-sm font-semibold text-white focus:outline-none cursor-pointer hover:text-indigo-400"
                     >
                         <option value="video">Video</option>
+                        <option value="image">Image</option>
                         <option value="action">Action</option>
                         <option value="download">Download</option>
                         <option value="embedded">Embed</option>
@@ -301,7 +343,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
             <div className="flex-1 flex flex-col lg:flex-row h-full pt-0 animate-in fade-in duration-300">
                 {/* Visual Asset (Left) */}
                 <div className={`lg:w-2/3 relative flex items-center justify-center border-r border-slate-900 ${
-                    activeStep.type === 'video' || activeStep.type === 'embedded' ? 'bg-black' : 'bg-slate-900'
+                    activeStep.type === 'video' || activeStep.type === 'embedded' || activeStep.type === 'image' ? 'bg-black' : 'bg-slate-900'
                 }`}>
                     {/* ASSET CONFIGURATION OVERLAY */}
                     <div className="absolute top-6 left-6 z-10">
@@ -310,9 +352,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
                         </div>
                     </div>
 
+                    {/* VIDEO STEP */}
                     {activeStep.type === 'video' ? (
                         <div className="w-full h-full relative group">
-                            {activeStep.videoUrl ? (
+                            {activeStep.mediaType === 'generated-video' && activeStep.videoUrl ? (
+                                <video
+                                    className="w-full h-full object-contain pointer-events-none"
+                                    src={activeStep.videoUrl}
+                                    muted
+                                    autoPlay
+                                    loop
+                                />
+                            ) : activeStep.videoUrl ? (
                                 <iframe
                                     className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity pointer-events-none"
                                     src={`https://www.youtube.com/embed/${activeStep.videoUrl}?controls=0`}
@@ -321,23 +372,107 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
                             ) : (
                                 <div className="w-full h-full flex flex-col items-center justify-center text-slate-600">
                                     <Video className="w-16 h-16 mb-4 opacity-50" />
-                                    <p>No Video ID</p>
+                                    <p>No Video Configured</p>
                                 </div>
                             )}
+                            
                             {/* Editor Input Overlay */}
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm z-20">
                                 <div className="w-96 bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                                    <label className="block text-xs font-bold text-indigo-400 mb-2 uppercase">YouTube Video ID</label>
-                                    <input 
-                                        value={activeStep.videoUrl || ''}
-                                        onChange={(e) => updateActiveStep('videoUrl', e.target.value)}
-                                        placeholder="e.g. jNQXAC9IVRw"
-                                        className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
-                                    />
-                                    <p className="text-xs text-slate-500 mt-2">Paste the ID, not the full link.</p>
+                                    <div className="flex gap-2 mb-4 border-b border-slate-700 pb-2">
+                                        <button 
+                                            onClick={() => updateActiveStep('mediaType', 'youtube')}
+                                            className={`flex-1 pb-2 text-xs font-bold ${activeStep.mediaType !== 'generated-video' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-500'}`}
+                                        >
+                                            YouTube
+                                        </button>
+                                        <button 
+                                            onClick={() => updateActiveStep('mediaType', 'generated-video')}
+                                            className={`flex-1 pb-2 text-xs font-bold ${activeStep.mediaType === 'generated-video' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-500'}`}
+                                        >
+                                            AI Generate
+                                        </button>
+                                    </div>
+
+                                    {activeStep.mediaType === 'generated-video' ? (
+                                        <div className="space-y-3">
+                                            <p className="text-xs text-slate-400">Describe the video you want to generate using Veo.</p>
+                                            <textarea 
+                                                value={assetPrompt}
+                                                onChange={(e) => setAssetPrompt(e.target.value)}
+                                                placeholder="e.g. A neon hologram of a cat driving at top speed"
+                                                className="w-full h-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-white resize-none"
+                                            />
+                                            {generationError && <p className="text-xs text-red-400">{generationError}</p>}
+                                            <button 
+                                                onClick={handleGenerateAsset}
+                                                disabled={isGeneratingAsset || !assetPrompt}
+                                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-bold flex items-center justify-center gap-2"
+                                            >
+                                                {isGeneratingAsset ? <Loader2 className="w-3 h-3 animate-spin" /> : <Film className="w-3 h-3" />}
+                                                Generate Video
+                                            </button>
+                                            <p className="text-[10px] text-slate-500 text-center mt-1">
+                                                Requires paid API key. Please ensure billing is enabled.
+                                                <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="underline ml-1">Learn more</a>
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="block text-xs font-bold text-indigo-400 mb-2 uppercase">YouTube Video ID</label>
+                                            <input 
+                                                value={activeStep.videoUrl || ''}
+                                                onChange={(e) => updateActiveStep('videoUrl', e.target.value)}
+                                                placeholder="e.g. jNQXAC9IVRw"
+                                                className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+                                            />
+                                            <p className="text-xs text-slate-500 mt-2">Paste the ID, not the full link.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
+                    ) : activeStep.type === 'image' ? (
+                         <div className="w-full h-full relative group">
+                            {activeStep.imageUrl ? (
+                                <img
+                                    className="w-full h-full object-contain"
+                                    src={activeStep.imageUrl}
+                                    alt="Preview"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-slate-600">
+                                    <ImageIcon className="w-16 h-16 mb-4 opacity-50" />
+                                    <p>No Image Configured</p>
+                                </div>
+                            )}
+
+                            {/* Editor Input Overlay */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm z-20">
+                                <div className="w-96 bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform">
+                                    <h3 className="text-xs font-bold text-indigo-400 mb-4 uppercase">AI Image Generator</h3>
+                                    
+                                    <div className="space-y-3">
+                                        <p className="text-xs text-slate-400">Describe the image you want to generate.</p>
+                                        <textarea 
+                                            value={assetPrompt}
+                                            onChange={(e) => setAssetPrompt(e.target.value)}
+                                            placeholder="e.g. A futuristic office workspace with plants"
+                                            className="w-full h-20 bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-white resize-none"
+                                        />
+                                        {generationError && <p className="text-xs text-red-400">{generationError}</p>}
+                                        <button 
+                                            onClick={handleGenerateAsset}
+                                            disabled={isGeneratingAsset || !assetPrompt}
+                                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-xs font-bold flex items-center justify-center gap-2"
+                                        >
+                                            {isGeneratingAsset ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+                                            Generate Image
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                         </div>
                     ) : activeStep.type === 'embedded' ? (
                         <div className="w-full h-full relative group flex items-center justify-center">
                             <div className="text-center opacity-50 group-hover:opacity-20">
@@ -457,6 +592,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
                                 <div className="flex items-center gap-3 text-slate-500">
                                     <Play className="w-5 h-5 fill-current" />
                                     <span>User watches video to continue</span>
+                                </div>
+                            )}
+                            {activeStep.type === 'image' && (
+                                <div className="flex items-center gap-3 text-slate-500">
+                                    <ImageIcon className="w-5 h-5" />
+                                    <span>User views illustration to continue</span>
                                 </div>
                             )}
                             {activeStep.type === 'action' && (

@@ -2,7 +2,9 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Step } from "../types";
 
 const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+
+// We need a function to get the latest client, especially for Veo which might need a user-selected key
+const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY || apiKey });
 
 // Schema for Course Generation
 const stepSchema: Schema = {
@@ -26,6 +28,7 @@ const courseSchema: Schema = {
 
 export const generateCourseStructure = async (topic: string): Promise<Partial<Step>[]> => {
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are an expert UX and Onboarding specialist. 
@@ -56,6 +59,7 @@ export const generateCourseStructure = async (topic: string): Promise<Partial<St
 
 export const enhanceText = async (text: string): Promise<string> => {
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are an expert UX writer creating content for onboarding slides. 
@@ -80,6 +84,7 @@ export const enhanceText = async (text: string): Promise<string> => {
 
 export const chatWithConcierge = async (message: string, currentStepContext: string, history: {role: string, text: string}[]): Promise<string> => {
   try {
+    const ai = getAiClient();
     const systemInstruction = `You are a helpful AI Concierge for the '2gether' onboarding platform. 
     Your goal is to assist the user with their current onboarding step.
     Be polite, concise, and encouraging.
@@ -106,5 +111,73 @@ export const chatWithConcierge = async (message: string, currentStepContext: str
   } catch (error) {
     console.error("Chat failed:", error);
     return "I am currently offline. Please contact support.";
+  }
+};
+
+// --- NEW ASSET GENERATION SERVICES ---
+
+export const generateAiImage = async (prompt: string): Promise<string | null> => {
+  try {
+    const ai = getAiClient();
+    // Using gemini-2.5-flash-image for generation/editing as per prompt instructions
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: prompt,
+      // No specific imageConfig for 2.5 Flash Image, it generates via generateContent
+    });
+    
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Image generation failed:", error);
+    throw error;
+  }
+};
+
+export const generateAiVideo = async (prompt: string, aspectRatio: '16:9' | '9:16' = '16:9'): Promise<string | null> => {
+  try {
+    // Ensure Key Selection for Veo
+    // @ts-ignore
+    if (window.aistudio && window.aistudio.hasSelectedApiKey) {
+      // @ts-ignore
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+          // @ts-ignore
+          await window.aistudio.openSelectKey();
+      }
+    }
+    
+    // Create new instance to pick up the key
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    let operation = await ai.models.generateVideos({
+      model: 'veo-3.1-fast-generate-preview',
+      prompt: prompt,
+      config: {
+        numberOfVideos: 1,
+        resolution: '1080p',
+        aspectRatio: aspectRatio
+      }
+    });
+
+    // Polling
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      operation = await ai.operations.getVideosOperation({operation: operation});
+    }
+
+    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (downloadLink) {
+        // We return the link with the key appended so the <video> tag can fetch it directly
+        return `${downloadLink}&key=${process.env.API_KEY}`;
+    }
+    return null;
+  } catch (error) {
+    console.error("Video generation failed:", error);
+    throw error;
   }
 };
