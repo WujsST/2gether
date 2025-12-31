@@ -3,10 +3,27 @@ export type StepType = 'video' | 'action' | 'download' | 'embedded' | 'link' | '
 
 export type MediaType = 'youtube' | 'generated-video' | 'generated-image' | 'upload';
 
+export type BlockType = 'text' | 'alert' | 'quiz';
+export type AlertVariant = 'info' | 'warning' | 'success' | 'danger';
+
+export interface ContentBlock {
+  id: string;
+  type: BlockType;
+  // Text & Alert content
+  content?: string; 
+  // Alert specific
+  alertVariant?: AlertVariant;
+  // Quiz specific
+  quizQuestion?: string;
+  quizOptions?: string[];
+  quizCorrectIndex?: number;
+}
+
 export interface Step {
   id: string;
   title: string;
-  description: string;
+  description: string; // Kept for backwards compatibility/fallback
+  contentBlocks?: ContentBlock[]; // New rich content structure
   type: StepType;
   
   // Media Configuration

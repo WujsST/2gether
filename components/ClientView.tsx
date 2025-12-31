@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, CheckCircle, Download, FileText, Play, Link as LinkIcon, ArrowUpRight, Image as ImageIcon } from 'lucide-react';
-import { Course, Step, GlobalSettings, UserProgress } from '../types';
+import { ChevronRight, CheckCircle, Download, FileText, Play, Link as LinkIcon, ArrowUpRight, Image as ImageIcon, AlertTriangle, Info, AlertCircle, HelpCircle } from 'lucide-react';
+import { Course, Step, GlobalSettings, UserProgress, ContentBlock } from '../types';
 import { AiChatWidget } from './AiChatWidget';
 import { ReviewModal } from './ReviewModal';
 
@@ -9,6 +9,108 @@ interface ClientViewProps {
   settings: GlobalSettings;
   courses?: Course[]; // To find linked course names if needed
 }
+
+// --- Sub-component: Quiz Block ---
+const QuizBlock: React.FC<{ block: ContentBlock }> = ({ block }) => {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const isCorrect = selected === block.quizCorrectIndex;
+
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 my-4 shadow-sm">
+      <div className="flex items-start gap-3 mb-4">
+        <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-600 dark:text-indigo-400">
+          <HelpCircle className="w-5 h-5" />
+        </div>
+        <h4 className="text-lg font-bold text-slate-900 dark:text-white pt-1">{block.quizQuestion}</h4>
+      </div>
+      
+      <div className="space-y-2">
+        {block.quizOptions?.map((option, idx) => {
+          let optionClass = "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800";
+          if (isSubmitted) {
+            if (idx === block.quizCorrectIndex) optionClass = "bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-300";
+            else if (idx === selected) optionClass = "bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300";
+            else optionClass = "opacity-50";
+          } else if (selected === idx) {
+            optionClass = "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/10 ring-1 ring-indigo-500";
+          }
+
+          return (
+            <button
+              key={idx}
+              disabled={isSubmitted}
+              onClick={() => setSelected(idx)}
+              className={`w-full text-left p-3 rounded-lg border transition-all ${optionClass}`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+
+      {!isSubmitted && selected !== null && (
+        <button 
+          onClick={() => setIsSubmitted(true)}
+          className="mt-4 w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg transition-colors"
+        >
+          Check Answer
+        </button>
+      )}
+
+      {isSubmitted && (
+         <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 text-sm font-medium ${isCorrect ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+            {isCorrect ? <CheckCircle className="w-4 h-4"/> : <AlertCircle className="w-4 h-4"/>}
+            {isCorrect ? "Correct! Well done." : "Incorrect. Try again?"}
+            {!isCorrect && (
+              <button onClick={() => { setIsSubmitted(false); setSelected(null); }} className="ml-auto underline">
+                Reset
+              </button>
+            )}
+         </div>
+      )}
+    </div>
+  );
+};
+
+// --- Sub-component: Block Renderer ---
+const BlockRenderer: React.FC<{ blocks: ContentBlock[] }> = ({ blocks }) => {
+  return (
+    <div className="space-y-4 mb-8">
+      {blocks.map((block) => {
+        if (block.type === 'alert') {
+          const variants = {
+            info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300',
+            warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-300',
+            success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-300',
+            danger: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-300',
+          };
+          const icons = {
+             info: <Info className="w-5 h-5 flex-shrink-0" />,
+             warning: <AlertTriangle className="w-5 h-5 flex-shrink-0" />,
+             success: <CheckCircle className="w-5 h-5 flex-shrink-0" />,
+             danger: <AlertCircle className="w-5 h-5 flex-shrink-0" />,
+          };
+          const v = block.alertVariant || 'info';
+          
+          return (
+            <div key={block.id} className={`p-4 rounded-xl border flex gap-3 items-start ${variants[v]}`}>
+              {icons[v]}
+              <div className="text-sm leading-relaxed">{block.content}</div>
+            </div>
+          );
+        } else if (block.type === 'quiz') {
+           return <QuizBlock key={block.id} block={block} />;
+        } else {
+           // Default Text
+           return <p key={block.id} className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap">{block.content}</p>;
+        }
+      })}
+    </div>
+  );
+};
+
 
 export const ClientView: React.FC<ClientViewProps> = ({ course, settings, courses }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -36,8 +138,6 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
     
     if (myProgress) {
         setCompletedSteps(myProgress.completedStepIds);
-        // Optional: Resume from last step? For now, start at 0 or let user click through. 
-        // Let's not force jump to avoid confusion in this prototype.
     } else {
         // Initialize entry
         const newProgress: UserProgress = {
@@ -96,9 +196,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
   };
 
   const handleLinkedCourseRedirect = (targetCourseId: string) => {
-     // Mark current step as done before leaving
      markComplete(currentStep.id);
-     // Redirect
      const url = new URL(window.location.href);
      url.searchParams.set('courseId', targetCourseId);
      window.location.href = url.toString();
@@ -179,6 +277,11 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
       );
   };
 
+  // Safe content blocks retrieval (fallback to description if empty)
+  const contentBlocks: ContentBlock[] = (currentStep.contentBlocks && currentStep.contentBlocks.length > 0) 
+    ? currentStep.contentBlocks 
+    : [{ id: 'default', type: 'text', content: currentStep.description }];
+
   return (
     <div className="relative min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white overflow-hidden flex flex-col transition-colors duration-500">
       
@@ -226,9 +329,9 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
             <h1 className="text-3xl md:text-4xl font-bold mb-6 text-slate-900 dark:text-white leading-tight">
               {currentStep.title}
             </h1>
-            <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
-              {currentStep.description}
-            </p>
+            
+            {/* RICH CONTENT BLOCKS RENDERER */}
+            <BlockRenderer blocks={contentBlocks} />
 
             {/* Action Area */}
             <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-200 dark:border-white/5 shadow-inner">
@@ -308,7 +411,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
       </div>
 
       {/* AI Assistant */}
-      <AiChatWidget context={`The user is on step "${currentStep.title}". Description: "${currentStep.description}". Type: ${currentStep.type}.`} />
+      <AiChatWidget context={`The user is on step "${currentStep.title}". Type: ${currentStep.type}.`} />
 
       {/* Gating Modal */}
       <ReviewModal isOpen={showReview} onClose={() => window.location.reload()} />
