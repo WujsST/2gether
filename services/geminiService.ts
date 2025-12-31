@@ -12,7 +12,7 @@ const stepSchema: Schema = {
   properties: {
     title: { type: Type.STRING, description: "Short title of the step" },
     description: { type: Type.STRING, description: "Instructional text for the user" },
-    type: { type: Type.STRING, enum: ['video', 'action', 'download', 'embedded'], description: "Type of the step" },
+    type: { type: Type.STRING, enum: ['video', 'action', 'download', 'embedded', 'link', 'image', 'sop'], description: "Type of the step" },
     videoUrl: { type: Type.STRING, description: "A valid YouTube Video ID (not full URL) relevant to the topic. Use placeholder IDs like 'dQw4w9WgXcQ' if unknown." },
     embedUrl: { type: Type.STRING, description: "Full URL for embedded content (e.g. Calendly link, Google Slides embed link). Only for 'embedded' type." },
     actionLabel: { type: Type.STRING, description: "Label for the action button or input (e.g., 'Upload Brief')" },
@@ -34,7 +34,7 @@ export const generateCourseStructure = async (topic: string): Promise<Partial<St
       contents: `You are an expert UX and Onboarding specialist. 
       Create a structured onboarding course for: "${topic}".
       The course should be engaging, concise, and professional.
-      Generate 4-6 steps. Mix video instructions, action items, downloads, and embedded tools (like scheduling a meeting).`,
+      Generate 4-6 steps. Mix video instructions, action items, downloads, embedded tools, and SOP readings.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: courseSchema,

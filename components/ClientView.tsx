@@ -421,7 +421,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
                 </div>
               )}
               
-              {currentStep.type === 'sop' && (
+              {(currentStep.type as string) === 'sop' && (
                 <div className="flex items-center gap-3 text-slate-500 dark:text-slate-300">
                   <File className="w-5 h-5" />
                   <span>Read the procedure document</span>
