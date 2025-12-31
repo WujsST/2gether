@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { generateCourseStructure, enhanceText, generateAiImage, generateAiVideo } from '../services/geminiService';
+import { generateCourseStructure, enhanceText, generateAiImage, generateAiVideo, generateSopContent } from '../services/geminiService';
 import { Course, Step, StepType, MediaType, ContentBlock, AlertVariant } from '../types';
 import { 
   Wand2, Plus, Layout, Video, Download, CheckSquare, Loader2, Save, 
   Trash2, GripVertical, Link as LinkIcon, Upload, Bold, Italic, 
   List, Heading, Sparkles, Monitor, Smartphone, ChevronRight, Settings, 
   ArrowLeft, Play, ArrowUpRight, Image as ImageIcon, Film,
-  AlertTriangle, HelpCircle, Type as TypeIcon, X
+  AlertTriangle, HelpCircle, Type as TypeIcon, X, FileText
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -73,6 +73,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
         contentBlocks: s.contentBlocks || [],
         type: s.type || 'action',
         
+        // SOP
+        sopContent: s.sopContent,
+
         // Media defaults
         mediaType: s.mediaType || 'youtube',
         videoUrl: s.videoUrl,
@@ -181,6 +184,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
               if (videoUri) {
                   updateActiveStep('videoUrl', videoUri);
                   updateActiveStep('mediaType', 'generated-video');
+              }
+          } else if (stepType === 'sop') {
+              const sopText = await generateSopContent(assetPrompt);
+              if (sopText) {
+                  updateActiveStep('sopContent', sopText);
               }
           }
       } catch (err) {
@@ -358,6 +366,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
                     >
                         <option value="video">Video</option>
                         <option value="image">Image</option>
+                        <option value="sop">SOP Document</option>
                         <option value="action">Action</option>
                         <option value="download">Download</option>
                         <option value="embedded">Embed</option>
@@ -375,9 +384,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
                 <div className={`lg:w-2/3 relative flex items-center justify-center border-r border-slate-900 ${
                     activeStep.type === 'video' || activeStep.type === 'embedded' || activeStep.type === 'image' ? 'bg-black' : 'bg-slate-900'
                 }`}>
-                    {/* ASSET PREVIEW AREA (Unchanged from previous impl) */}
-                    {/* ... (Keeping asset preview code compact for this answer as it was not the requested change) ... */}
-                    {activeStep.type === 'video' ? (
+                    {/* SOP EDITOR */}
+                    {activeStep.type === 'sop' ? (
+                        <div className="w-full h-full p-8 bg-slate-200/50 flex justify-center overflow-y-auto">
+                            <div className="relative w-full max-w-2xl bg-white text-slate-900 min-h-full shadow-2xl p-8 rounded-sm">
+                                <div className="absolute -top-12 left-0 flex items-center gap-2">
+                                     <button 
+                                        onClick={() => setShowAiPanel(!showAiPanel)}
+                                        className="bg-indigo-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1"
+                                     >
+                                         <Wand2 className="w-3 h-3" /> Auto-Write SOP
+                                     </button>
+                                </div>
+                                
+                                {showAiPanel && (
+                                     <div className="absolute top-4 left-4 right-4 z-20 bg-slate-900 p-4 rounded-xl shadow-2xl border border-slate-700 animate-in slide-in-from-top-2">
+                                         <div className="flex justify-between items-center mb-2">
+                                             <h3 className="text-xs font-bold text-white uppercase">AI SOP Generator</h3>
+                                             <button onClick={() => setShowAiPanel(false)}><X className="w-4 h-4 text-slate-400"/></button>
+                                         </div>
+                                         <textarea 
+                                             value={assetPrompt} 
+                                             onChange={(e) => setAssetPrompt(e.target.value)}
+                                             placeholder="What is this SOP about? e.g. 'Handling customer refunds'"
+                                             className="w-full bg-slate-800 text-white text-sm p-2 rounded mb-2 border border-slate-700"
+                                         />
+                                         <button 
+                                             onClick={handleGenerateAsset}
+                                             disabled={isGeneratingAsset}
+                                             className="w-full bg-indigo-600 text-white py-2 rounded text-xs font-bold"
+                                         >
+                                             {isGeneratingAsset ? <Loader2 className="w-3 h-3 animate-spin mx-auto"/> : 'Generate Document'}
+                                         </button>
+                                     </div>
+                                )}
+
+                                <div className="text-xs text-slate-400 uppercase font-bold mb-4 border-b pb-2">Standard Operating Procedure</div>
+                                <textarea
+                                    value={activeStep.sopContent || ''}
+                                    onChange={(e) => updateActiveStep('sopContent', e.target.value)}
+                                    placeholder="# Procedure Title\n\nWrite your SOP here or use AI to generate it..."
+                                    className="w-full h-[calc(100%-4rem)] resize-none outline-none text-slate-800 bg-transparent font-serif leading-relaxed"
+                                />
+                            </div>
+                        </div>
+                    ) : activeStep.type === 'video' ? (
                         <div className="w-full h-full relative group flex items-center justify-center">
                             {activeStep.mediaType === 'generated-video' && activeStep.videoUrl ? (
                                 <video className="w-full h-full object-contain pointer-events-none" src={activeStep.videoUrl} muted autoPlay loop />
@@ -558,7 +609,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ initialCourse, a
                             {/* ... other types simplified for brevity in this specific update ... */}
                              {activeStep.type !== 'action' && (
                                  <div className="text-sm text-slate-400 text-center italic">
-                                     {activeStep.type === 'video' ? 'Video Completion Trigger' : 
+                                     {activeStep.type === 'sop' ? 'SOP Read Verification' :
+                                      activeStep.type === 'video' ? 'Video Completion Trigger' : 
                                       activeStep.type === 'download' ? 'File Download Button' : 
                                       'Continue Button'}
                                  </div>

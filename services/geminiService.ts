@@ -116,6 +116,30 @@ export const chatWithConcierge = async (message: string, currentStepContext: str
 
 // --- NEW ASSET GENERATION SERVICES ---
 
+export const generateSopContent = async (topic: string): Promise<string> => {
+    try {
+        const ai = getAiClient();
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview',
+            contents: `Write a detailed Standard Operating Procedure (SOP) document for: "${topic}".
+            
+            Format it with clear headers using Markdown:
+            - Title (H1)
+            - Purpose (H2)
+            - Scope (H2)
+            - Responsibilities (H2)
+            - Procedure (H2 with numbered lists)
+            - References (H2)
+            
+            Keep it professional, clear, and actionable.`,
+        });
+        return response.text || "";
+    } catch (error) {
+        console.error("SOP generation failed", error);
+        return "";
+    }
+};
+
 export const generateAiImage = async (prompt: string): Promise<string | null> => {
   try {
     const ai = getAiClient();

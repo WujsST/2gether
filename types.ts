@@ -1,5 +1,5 @@
 
-export type StepType = 'video' | 'action' | 'download' | 'embedded' | 'link' | 'image';
+export type StepType = 'video' | 'action' | 'download' | 'embedded' | 'link' | 'image' | 'sop';
 
 export type MediaType = 'youtube' | 'generated-video' | 'generated-image' | 'upload';
 
@@ -26,6 +26,9 @@ export interface Step {
   contentBlocks?: ContentBlock[]; // New rich content structure
   type: StepType;
   
+  // SOP specific
+  sopContent?: string; // Markdown/HTML content for the SOP document
+
   // Media Configuration
   mediaType?: MediaType; 
   videoUrl?: string; // YouTube ID or Generated Video URI

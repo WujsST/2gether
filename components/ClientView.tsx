@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, CheckCircle, Download, FileText, Play, Link as LinkIcon, ArrowUpRight, Image as ImageIcon, AlertTriangle, Info, AlertCircle, HelpCircle } from 'lucide-react';
+import { ChevronRight, CheckCircle, Download, FileText, Play, Link as LinkIcon, ArrowUpRight, Image as ImageIcon, AlertTriangle, Info, AlertCircle, HelpCircle, File } from 'lucide-react';
 import { Course, Step, GlobalSettings, UserProgress, ContentBlock } from '../types';
 import { AiChatWidget } from './AiChatWidget';
 import { ReviewModal } from './ReviewModal';
@@ -209,12 +209,72 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
      window.location.href = url.toString();
   };
 
+  const handleExportDoc = () => {
+      if (!currentStep.sopContent) return;
+      
+      // Basic HTML-to-Doc strategy
+      const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
+      const footer = "</body></html>";
+      // Convert basic Markdown to HTML logic (simplified)
+      const contentHtml = currentStep.sopContent
+         .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+         .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+         .replace(/^\- (.*$)/gim, '<li>$1</li>')
+         .replace(/\n/gim, '<br>');
+
+      const sourceHTML = header + contentHtml + footer;
+      
+      const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+      const fileDownload = document.createElement("a");
+      document.body.appendChild(fileDownload);
+      fileDownload.href = source;
+      fileDownload.download = `${currentStep.title.replace(/\s+/g, '_')}_SOP.doc`;
+      fileDownload.click();
+      document.body.removeChild(fileDownload);
+  };
+
   useEffect(() => {
     setIsTransitioning(false);
   }, [currentStepIndex]);
 
   // Helper to render media content
   const renderMedia = () => {
+      if (currentStep.type === 'sop') {
+          return (
+              <div className="w-full h-full p-8 overflow-y-auto bg-slate-200/90 dark:bg-slate-900/90 backdrop-blur">
+                  <div className="max-w-3xl mx-auto bg-white text-slate-900 min-h-[600px] shadow-2xl p-8 md:p-12 rounded-sm relative">
+                       {/* Document Header Line */}
+                       <div className="border-b-2 border-slate-800 pb-4 mb-8 flex justify-between items-end">
+                           <div>
+                               <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Standard Operating Procedure</div>
+                               <h1 className="text-2xl font-serif font-bold">{currentStep.title}</h1>
+                           </div>
+                           <button 
+                             onClick={handleExportDoc}
+                             className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded flex items-center gap-1 transition-colors"
+                             title="Download as Word Doc"
+                           >
+                               <Download className="w-3 h-3" /> Export .doc
+                           </button>
+                       </div>
+                       
+                       {/* Content */}
+                       <div className="prose prose-slate max-w-none font-serif">
+                           <div className="whitespace-pre-wrap leading-relaxed">
+                               {currentStep.sopContent || "No content available for this SOP."}
+                           </div>
+                       </div>
+
+                       {/* Footer */}
+                       <div className="mt-12 pt-4 border-t border-slate-200 text-[10px] text-slate-400 flex justify-between">
+                           <span>{settings.platformName} Internal Document</span>
+                           <span>Page 1 of 1</span>
+                       </div>
+                  </div>
+              </div>
+          );
+      }
+
       if (currentStep.type === 'video') {
           if (currentStep.mediaType === 'generated-video' && currentStep.videoUrl) {
               return (
@@ -277,6 +337,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
              {currentStep.type === 'download' ? <Download className="w-10 h-10" style={{ color: 'var(--primary)' }}/> : 
               currentStep.type === 'link' ? <ArrowUpRight className="w-10 h-10" style={{ color: 'var(--primary)' }}/> :
               currentStep.type === 'image' ? <ImageIcon className="w-10 h-10" style={{ color: 'var(--primary)' }}/> :
+              currentStep.type === 'sop' ? <FileText className="w-10 h-10" style={{ color: 'var(--primary)' }}/> :
               <FileText className="w-10 h-10" style={{ color: 'var(--primary)' }}/>}
           </div>
           <h2 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white">{currentStep.title}</h2>
@@ -325,7 +386,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
       <div className="flex-1 flex flex-col lg:flex-row h-full pt-2">
         
         {/* Left: Video / Content */}
-        <div className={`lg:w-2/3 h-[50vh] lg:h-screen relative flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden transition-colors duration-500 ${currentStep.type === 'video' || currentStep.type === 'embedded' || currentStep.type === 'image' ? 'bg-black' : 'bg-slate-100 dark:bg-slate-900'}`}>
+        <div className={`lg:w-2/3 h-[50vh] lg:h-screen relative flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden transition-colors duration-500 ${currentStep.type === 'video' || currentStep.type === 'embedded' || currentStep.type === 'image' || currentStep.type === 'sop' ? 'bg-black' : 'bg-slate-100 dark:bg-slate-900'}`}>
           <div className={`w-full h-full flex items-center justify-center transition-all duration-400 ease-in-out transform ${isTransitioning ? 'opacity-0 scale-95 blur-sm' : 'opacity-100 scale-100 blur-0'}`}>
             {renderMedia()}
           </div>
@@ -357,6 +418,13 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
                 <div className="flex items-center gap-3 text-slate-500 dark:text-slate-300">
                   <ImageIcon className="w-5 h-5" />
                   <span>Review the diagram above</span>
+                </div>
+              )}
+              
+              {currentStep.type === 'sop' && (
+                <div className="flex items-center gap-3 text-slate-500 dark:text-slate-300">
+                  <File className="w-5 h-5" />
+                  <span>Read the procedure document</span>
                 </div>
               )}
 
