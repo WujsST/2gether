@@ -40,7 +40,12 @@ const MOCK_COURSE: Course = {
 
 const DEFAULT_SETTINGS: GlobalSettings = {
   platformName: '2gether',
-  logoUrl: ''
+  logoUrl: '',
+  theme: {
+    primaryColor: '#4f46e5', // Indigo-600
+    radius: '12px',
+    mode: 'dark'
+  }
 };
 
 // Persistence Helper
@@ -55,7 +60,12 @@ const saveCoursesToStorage = (courses: Course[]) => {
 
 const loadSettings = (): GlobalSettings => {
   const saved = localStorage.getItem('2gether_settings');
-  return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+  const parsed = saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+  // Migration for old settings without theme
+  if (!parsed.theme) {
+      parsed.theme = DEFAULT_SETTINGS.theme;
+  }
+  return parsed;
 };
 
 const saveSettingsToStorage = (settings: GlobalSettings) => {
@@ -73,15 +83,18 @@ function App() {
 
   // Initialize
   useEffect(() => {
-    // Theme Init
-    if (isDarkMode) document.documentElement.classList.add('dark');
+    const loadedSettings = loadSettings();
+    setSettings(loadedSettings);
+    // Sync local state with loaded settings
+    if (loadedSettings.theme?.mode === 'light') {
+        setIsDarkMode(false);
+    } else {
+        setIsDarkMode(true);
+    }
     
     // Load Data
     const loadedCourses = loadCourses();
     setCourses(loadedCourses);
-    
-    const loadedSettings = loadSettings();
-    setSettings(loadedSettings);
 
     // Check URL Params for courseId
     const params = new URLSearchParams(window.location.search);
@@ -99,15 +112,38 @@ function App() {
     }
   }, []);
 
+  // Theme Effect: Apply CSS Variables & Dark Mode Class
   useEffect(() => {
+    // 1. Handle Dark Mode Class
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [isDarkMode]);
 
-  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+    // 2. Inject CSS Variables for Dynamic Theming
+    const primary = settings.theme?.primaryColor || '#4f46e5';
+    const radius = settings.theme?.radius || '12px';
+
+    // We inject these into the root so Tailwind arbitrary values can pick them up
+    // e.g. bg-[var(--primary)]
+    document.documentElement.style.setProperty('--primary', primary);
+    document.documentElement.style.setProperty('--radius', radius);
+
+  }, [isDarkMode, settings.theme]);
+
+  const toggleTheme = () => {
+      const newMode = !isDarkMode ? 'dark' : 'light';
+      setIsDarkMode(!isDarkMode);
+      
+      // Persist mode change immediately
+      const newSettings = { 
+          ...settings, 
+          theme: { ...settings.theme!, mode: newMode as 'light' | 'dark' } 
+      };
+      setSettings(newSettings);
+      saveSettingsToStorage(newSettings);
+  };
 
   // --- Actions ---
 
@@ -145,6 +181,10 @@ function App() {
 
   const handleSaveSettings = (newSettings: GlobalSettings) => {
     setSettings(newSettings);
+    // Also sync dark mode state if it was changed in settings view
+    if (newSettings.theme?.mode === 'light') setIsDarkMode(false);
+    else setIsDarkMode(true);
+    
     saveSettingsToStorage(newSettings);
     setView('admin-list');
   };
@@ -257,7 +297,10 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden transition-colors duration-300">
       <ThemeToggle />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-300/30 dark:bg-indigo-900/30 rounded-full blur-[128px]"></div>
+      <div 
+        className="absolute top-0 left-1/4 w-96 h-96 opacity-30 rounded-full blur-[128px]" 
+        style={{ backgroundColor: settings.theme?.primaryColor }}
+      ></div>
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-300/30 dark:bg-purple-900/30 rounded-full blur-[128px]"></div>
 
       <div className="relative z-10 w-full max-w-md">
@@ -274,7 +317,8 @@ function App() {
             <div className="space-y-4">
                 <button 
                     onClick={() => setView('admin-list')}
-                    className="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-bold transition-all transform hover:scale-[1.02] shadow-lg shadow-indigo-500/30 dark:shadow-indigo-900/50"
+                    className="w-full py-4 text-white rounded-[var(--radius)] font-bold transition-all transform hover:scale-[1.02] shadow-lg"
+                    style={{ backgroundColor: 'var(--primary)', boxShadow: `0 10px 15px -3px var(--primary)40` }}
                 >
                     Login as Admin
                 </button>

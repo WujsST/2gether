@@ -18,9 +18,9 @@ const QuizBlock: React.FC<{ block: ContentBlock }> = ({ block }) => {
   const isCorrect = selected === block.quizCorrectIndex;
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 my-4 shadow-sm">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 my-4 shadow-sm" style={{ borderRadius: 'var(--radius)' }}>
       <div className="flex items-start gap-3 mb-4">
-        <div className="bg-indigo-100 dark:bg-indigo-900/30 p-2 rounded-lg text-indigo-600 dark:text-indigo-400">
+        <div className="p-2 rounded-lg text-[var(--primary)] bg-[var(--primary)]/10">
           <HelpCircle className="w-5 h-5" />
         </div>
         <h4 className="text-lg font-bold text-slate-900 dark:text-white pt-1">{block.quizQuestion}</h4>
@@ -28,13 +28,18 @@ const QuizBlock: React.FC<{ block: ContentBlock }> = ({ block }) => {
       
       <div className="space-y-2">
         {block.quizOptions?.map((option, idx) => {
-          let optionClass = "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800";
+          let style = {};
+          let className = "w-full text-left p-3 border transition-all hover:bg-slate-50 dark:hover:bg-slate-800";
+          
           if (isSubmitted) {
-            if (idx === block.quizCorrectIndex) optionClass = "bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-300";
-            else if (idx === selected) optionClass = "bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300";
-            else optionClass = "opacity-50";
+            if (idx === block.quizCorrectIndex) className = "w-full text-left p-3 border bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-300";
+            else if (idx === selected) className = "w-full text-left p-3 border bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-300";
+            else className += " opacity-50";
           } else if (selected === idx) {
-            optionClass = "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/10 ring-1 ring-indigo-500";
+             className = "w-full text-left p-3 border bg-[var(--primary)]/5";
+             style = { borderColor: 'var(--primary)', color: 'var(--primary)' };
+          } else {
+             className += " border-slate-200 dark:border-slate-700";
           }
 
           return (
@@ -42,7 +47,8 @@ const QuizBlock: React.FC<{ block: ContentBlock }> = ({ block }) => {
               key={idx}
               disabled={isSubmitted}
               onClick={() => setSelected(idx)}
-              className={`w-full text-left p-3 rounded-lg border transition-all ${optionClass}`}
+              className={className}
+              style={{ borderRadius: 'calc(var(--radius) * 0.75)', ...style }}
             >
               {option}
             </button>
@@ -53,14 +59,15 @@ const QuizBlock: React.FC<{ block: ContentBlock }> = ({ block }) => {
       {!isSubmitted && selected !== null && (
         <button 
           onClick={() => setIsSubmitted(true)}
-          className="mt-4 w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg transition-colors"
+          className="mt-4 w-full py-2 text-white font-semibold transition-colors hover:opacity-90"
+          style={{ backgroundColor: 'var(--primary)', borderRadius: 'calc(var(--radius) * 0.75)' }}
         >
           Check Answer
         </button>
       )}
 
       {isSubmitted && (
-         <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 text-sm font-medium ${isCorrect ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
+         <div className={`mt-4 p-3 flex items-center gap-2 text-sm font-medium ${isCorrect ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`} style={{ borderRadius: 'var(--radius)' }}>
             {isCorrect ? <CheckCircle className="w-4 h-4"/> : <AlertCircle className="w-4 h-4"/>}
             {isCorrect ? "Correct! Well done." : "Incorrect. Try again?"}
             {!isCorrect && (
@@ -95,7 +102,7 @@ const BlockRenderer: React.FC<{ blocks: ContentBlock[] }> = ({ blocks }) => {
           const v = block.alertVariant || 'info';
           
           return (
-            <div key={block.id} className={`p-4 rounded-xl border flex gap-3 items-start ${variants[v]}`}>
+            <div key={block.id} className={`p-4 border flex gap-3 items-start ${variants[v]}`} style={{ borderRadius: 'var(--radius)' }}>
               {icons[v]}
               <div className="text-sm leading-relaxed">{block.content}</div>
             </div>
@@ -243,7 +250,8 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
                  <img 
                     src={currentStep.imageUrl} 
                     alt={currentStep.title}
-                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                    className="max-w-full max-h-full object-contain shadow-2xl"
+                    style={{ borderRadius: 'var(--radius)' }}
                  />
              </div>
           );
@@ -266,10 +274,10 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
       return (
         <div className="flex flex-col items-center justify-center p-8 text-center">
           <div className="w-24 h-24 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-6 shadow-xl">
-             {currentStep.type === 'download' ? <Download className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/> : 
-              currentStep.type === 'link' ? <ArrowUpRight className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/> :
-              currentStep.type === 'image' ? <ImageIcon className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/> :
-              <FileText className="w-10 h-10 text-indigo-500 dark:text-indigo-400"/>}
+             {currentStep.type === 'download' ? <Download className="w-10 h-10" style={{ color: 'var(--primary)' }}/> : 
+              currentStep.type === 'link' ? <ArrowUpRight className="w-10 h-10" style={{ color: 'var(--primary)' }}/> :
+              currentStep.type === 'image' ? <ImageIcon className="w-10 h-10" style={{ color: 'var(--primary)' }}/> :
+              <FileText className="w-10 h-10" style={{ color: 'var(--primary)' }}/>}
           </div>
           <h2 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white">{currentStep.title}</h2>
           <p className="text-slate-500 dark:text-slate-400 max-w-md">{currentStep.description}</p>
@@ -294,7 +302,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
                 className="h-10 w-auto object-contain drop-shadow-md"
             />
          ) : (
-            <div className="px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-lg border border-white/20 shadow-lg">
+            <div className="px-3 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 shadow-lg" style={{ borderRadius: 'var(--radius)' }}>
                 <span className="font-bold text-lg tracking-tight text-white/90 drop-shadow-md">
                     {settings.platformName}
                 </span>
@@ -305,8 +313,11 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
       {/* Top Progress Bar */}
       <div className="fixed top-0 left-0 w-full z-20 h-2 bg-slate-200 dark:bg-slate-900">
         <div 
-          className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-700 ease-out"
-          style={{ width: `${((currentStepIndex + 1) / course.steps.length) * 100}%` }}
+          className="h-full transition-all duration-700 ease-out"
+          style={{ 
+              width: `${((currentStepIndex + 1) / course.steps.length) * 100}%`,
+              backgroundColor: 'var(--primary)'
+          }}
         />
       </div>
 
@@ -323,7 +334,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
         {/* Right: Interactive Panel */}
         <div className="lg:w-1/3 h-[50vh] lg:h-screen bg-white/60 dark:bg-slate-950/50 backdrop-blur-sm flex flex-col relative transition-colors duration-500">
           <div className={`flex-1 p-8 flex flex-col justify-center transition-all duration-400 ease-in-out ${isTransitioning ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'}`}>
-            <div className="mb-2 text-indigo-600 dark:text-indigo-400 font-mono text-xs tracking-widest uppercase">
+            <div className="mb-2 font-mono text-xs tracking-widest uppercase" style={{ color: 'var(--primary)' }}>
               Step {currentStepIndex + 1} of {course.steps.length}
             </div>
             <h1 className="text-3xl md:text-4xl font-bold mb-6 text-slate-900 dark:text-white leading-tight">
@@ -334,7 +345,7 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
             <BlockRenderer blocks={contentBlocks} />
 
             {/* Action Area */}
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-200 dark:border-white/5 shadow-inner">
+            <div className="bg-slate-50 dark:bg-slate-900/50 p-6 border border-slate-200 dark:border-white/5 shadow-inner" style={{ borderRadius: 'var(--radius)' }}>
               {currentStep.type === 'video' && (
                 <div className="flex items-center gap-3 text-slate-500 dark:text-slate-300">
                   <Play className="w-5 h-5 fill-current" />
@@ -359,13 +370,14 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
               {currentStep.type === 'action' && (
                 <div className="space-y-4">
                   <label className="flex items-center gap-4 cursor-pointer group">
-                    <input type="checkbox" className="w-6 h-6 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900" />
-                    <span className="text-lg text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-white transition-colors">{currentStep.actionLabel || "I have completed this task"}</span>
+                    <input type="checkbox" className="w-6 h-6 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-offset-slate-900" style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }} />
+                    <span className="text-lg text-slate-700 dark:text-slate-300 group-hover:opacity-80 transition-colors">{currentStep.actionLabel || "I have completed this task"}</span>
                   </label>
                   <input 
                     type="text" 
                     placeholder="Type your answer here..." 
-                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white focus:border-indigo-500 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 text-slate-900 dark:text-white focus:ring-1 outline-none placeholder-slate-400 dark:placeholder-slate-500"
+                    style={{ borderRadius: 'calc(var(--radius) * 0.5)', borderColor: 'transparent' }}
                   />
                 </div>
               )}
@@ -376,10 +388,11 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
                    download={currentStep.fileName}
                    target="_blank"
                    rel="noopener noreferrer"
-                   className="w-full py-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-3 transition-all group shadow-sm cursor-pointer"
+                   className="w-full py-4 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-3 transition-all group shadow-sm cursor-pointer"
+                   style={{ borderRadius: 'calc(var(--radius) * 0.75)' }}
                  >
-                   <div className="p-2 bg-indigo-500/10 rounded-lg group-hover:bg-indigo-500/20">
-                     <Download className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                   <div className="p-2 rounded-lg group-hover:opacity-80" style={{ backgroundColor: 'var(--primary)', opacity: 0.1 }}>
+                     <Download className="w-5 h-5" style={{ color: 'var(--primary)', opacity: 1 }} />
                    </div>
                    <span className="font-medium text-slate-700 dark:text-slate-200">{currentStep.fileName || "Resource.pdf"}</span>
                  </a>
@@ -388,7 +401,8 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
               {currentStep.type === 'link' && currentStep.linkedCourseId && (
                  <button 
                    onClick={() => handleLinkedCourseRedirect(currentStep.linkedCourseId!)}
-                   className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-indigo-500/30 group"
+                   className="w-full py-4 text-white flex items-center justify-center gap-3 transition-all shadow-lg group hover:opacity-90"
+                   style={{ backgroundColor: 'var(--primary)', borderRadius: 'calc(var(--radius) * 0.75)' }}
                  >
                    <span className="font-bold">Start Next Workflow</span>
                    <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
@@ -401,7 +415,8 @@ export const ClientView: React.FC<ClientViewProps> = ({ course, settings, course
           <div className="p-6 border-t border-slate-200 dark:border-white/5 bg-white/80 dark:bg-slate-950/80 backdrop-blur">
             <button 
               onClick={handleNext}
-              className="w-full group relative flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-950 py-4 px-8 rounded-xl font-bold text-lg hover:bg-slate-800 dark:hover:bg-indigo-50 transition-all shadow-lg hover:shadow-xl active:scale-95"
+              className="w-full group relative flex items-center justify-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-950 py-4 px-8 font-bold text-lg hover:bg-slate-800 dark:hover:bg-slate-200 transition-all shadow-lg hover:shadow-xl active:scale-95"
+              style={{ borderRadius: 'var(--radius)' }}
             >
               <span>{currentStepIndex === course.steps.length - 1 ? 'Finish' : 'Next Step'}</span>
               <ChevronRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />

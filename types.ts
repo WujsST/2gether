@@ -57,7 +57,14 @@ export interface ChatMessage {
   text: string;
 }
 
+export interface ThemeConfig {
+  primaryColor: string; // Hex code
+  radius: string; // '0px', '8px', '16px', '999px'
+  mode: 'light' | 'dark'; // Preserved here for persistence
+}
+
 export interface GlobalSettings {
   platformName: string;
   logoUrl: string;
+  theme?: ThemeConfig; // Added theme config
 }
