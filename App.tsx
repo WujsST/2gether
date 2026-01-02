@@ -6,7 +6,6 @@ import { SettingsView } from './components/SettingsView';
 import { AnalyticsView } from './components/AnalyticsView';
 import { Course, GlobalSettings } from './types';
 import { Sun, Moon } from 'lucide-react';
-import './src/index.css';
 
 const MOCK_COURSE: Course = {
   id: 'demo-1',
